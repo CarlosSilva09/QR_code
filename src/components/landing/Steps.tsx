@@ -49,7 +49,9 @@ export default function Steps() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                     {steps.map((step, index) => (
                         <div key={index} className="step-card glass-panel p-8 rounded-2xl relative overflow-hidden group hover:bg-white/10 transition-colors">
-                            <span className="text-8xl font-bold text-white/5 absolute -top-4 -right-4 transition-transform group-hover:scale-110">{step.number}</span>
+                            <span className="text-7xl font-bold leading-none text-white/5 absolute top-6 right-6 transition-transform group-hover:scale-110">
+                                {step.number}
+                            </span>
                             <h3 className="text-2xl font-bold mb-4 relative z-10">{step.title}</h3>
                             <p className="text-gray-400 relative z-10">{step.description}</p>
                         </div>
