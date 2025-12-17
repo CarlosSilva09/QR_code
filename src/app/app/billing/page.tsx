@@ -1,49 +1,55 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useSession } from 'next-auth/react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { Check, Crown, Loader2 } from 'lucide-react';
 
 interface SubscriptionData {
     status: string | null;
     currentPeriodEnd: string | null;
+    accessUntil?: string | null;
+    active?: boolean;
 }
 
 export default function BillingPage() {
-    const { data: session } = useSession();
-    const router = useRouter();
     const searchParams = useSearchParams();
     const [subscription, setSubscription] = useState<SubscriptionData | null>(null);
     const [loading, setLoading] = useState(true);
     const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
+    const [cancelLoading, setCancelLoading] = useState(false);
+    const [message, setMessage] = useState<string>('');
 
     const success = searchParams.get('success');
+    const sessionId = searchParams.get('session_id');
+
+    const refreshSubscription = async () => {
+        const data = await fetch('/api/user/subscription').then((r) => r.json());
+        setSubscription(data);
+        setLoading(false);
+    };
 
     useEffect(() => {
-        const fetchSubscription = async () => {
-            // If returning from successful checkout, sync with Stripe first
+        const run = async () => {
             if (success) {
                 try {
-                    await fetch('/api/user/sync-subscription', { method: 'POST' });
+                    const url = sessionId
+                        ? `/api/user/sync-subscription?session_id=${encodeURIComponent(sessionId)}`
+                        : '/api/user/sync-subscription';
+                    await fetch(url, { method: 'POST' });
                 } catch (e) {
                     console.error('Failed to sync subscription:', e);
                 }
             }
 
-            // Then fetch subscription status
-            fetch('/api/user/subscription')
-                .then(res => res.json())
-                .then(data => {
-                    setSubscription(data);
-                    setLoading(false);
-                })
-                .catch(() => setLoading(false));
+            try {
+                await refreshSubscription();
+            } catch {
+                setLoading(false);
+            }
         };
 
-        fetchSubscription();
-    }, [success]);
+        run();
+    }, [success, sessionId]);
 
     const handleCheckout = async (plan: 'monthly' | 'yearly') => {
         setCheckoutLoading(plan);
@@ -66,7 +72,34 @@ export default function BillingPage() {
         }
     };
 
-    const isActive = subscription?.status === 'active' || subscription?.status === 'trialing';
+    const isActive = subscription?.active ?? (subscription?.status === 'active' || subscription?.status === 'trialing');
+    const accessUntil = subscription?.accessUntil || subscription?.currentPeriodEnd;
+
+    const cancelRenewal = async () => {
+        if (!confirm('Cancelar renovação? Você mantém acesso até a data final e seus QRs ficam inativos após isso.')) {
+            return;
+        }
+
+        setCancelLoading(true);
+        setMessage('');
+        try {
+            const res = await fetch('/api/user/cancel-subscription', { method: 'POST' });
+            const data = await res.json().catch(() => null);
+            if (!res.ok) {
+                alert((data && data.message) || 'Erro ao cancelar.');
+                setCancelLoading(false);
+                return;
+            }
+
+            const until = data?.accessUntil ? new Date(data.accessUntil).toLocaleDateString('pt-BR') : null;
+            setMessage(until ? `Cancelamento agendado. Acesso até ${until}.` : 'Cancelamento agendado.');
+            await refreshSubscription();
+            setCancelLoading(false);
+        } catch {
+            alert('Erro de conexão');
+            setCancelLoading(false);
+        }
+    };
 
     if (loading) {
         return (
@@ -83,7 +116,13 @@ export default function BillingPage() {
 
             {success && (
                 <div className="bg-green-500/10 border border-green-500/50 text-green-400 p-4 rounded-lg mb-8">
-                    🎉 Pagamento confirmado! Sua assinatura está ativa.
+                    Pagamento confirmado! Sua assinatura está ativa.
+                </div>
+            )}
+
+            {message && (
+                <div className="bg-blue-500/10 border border-blue-500/50 text-blue-300 p-4 rounded-lg mb-8">
+                    {message}
                 </div>
             )}
 
@@ -99,41 +138,60 @@ export default function BillingPage() {
                         </div>
                     </div>
 
-                    {subscription?.currentPeriodEnd && (
+                    {accessUntil && (
                         <p className="text-gray-500 text-sm">
-                            Próxima renovação: {new Date(subscription.currentPeriodEnd).toLocaleDateString('pt-BR')}
+                            Acesso até: {new Date(accessUntil).toLocaleDateString('pt-BR')}
                         </p>
                     )}
 
                     <div className="mt-6 pt-6 border-t border-white/10">
                         <h3 className="font-bold mb-4">Seus benefícios:</h3>
                         <ul className="space-y-2 text-gray-400">
-                            <li className="flex gap-2"><Check className="text-green-500" size={18} /> QR Codes ilimitados</li>
-                            <li className="flex gap-2"><Check className="text-green-500" size={18} /> Edição a qualquer momento</li>
-                            <li className="flex gap-2"><Check className="text-green-500" size={18} /> Download PNG e SVG</li>
-                            <li className="flex gap-2"><Check className="text-green-500" size={18} /> Suporte prioritário</li>
+                            <li className="flex gap-2">
+                                <Check className="text-green-500" size={18} /> QR Codes ilimitados
+                            </li>
+                            <li className="flex gap-2">
+                                <Check className="text-green-500" size={18} /> Edição a qualquer momento
+                            </li>
+                            <li className="flex gap-2">
+                                <Check className="text-green-500" size={18} /> Download PNG e SVG
+                            </li>
+                            <li className="flex gap-2">
+                                <Check className="text-green-500" size={18} /> Suporte prioritário
+                            </li>
                         </ul>
+                    </div>
+
+                    <div className="mt-6 pt-6 border-t border-white/10 flex justify-end">
+                        <button
+                            onClick={cancelRenewal}
+                            disabled={cancelLoading}
+                            className="px-4 py-2 rounded-lg bg-red-500/15 text-red-300 hover:bg-red-500/25 transition-colors disabled:opacity-50"
+                        >
+                            {cancelLoading ? 'Cancelando...' : 'Cancelar renovação'}
+                        </button>
                     </div>
                 </div>
             ) : (
                 <>
                     <div className="glass-panel p-8 rounded-2xl mb-8 border-yellow-500/30">
                         <h2 className="text-xl font-bold mb-2">Você ainda não tem uma assinatura</h2>
-                        <p className="text-gray-400 mb-4">
-                            Assine agora para desbloquear QR Codes definitivos.
-                        </p>
+                        <p className="text-gray-400 mb-4">Assine agora para desbloquear QR Codes definitivos.</p>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Monthly */}
                         <div className="glass-panel p-6 rounded-xl">
                             <h3 className="font-bold text-lg mb-2">Mensal</h3>
                             <div className="text-3xl font-bold mb-4">
                                 R$ 29<span className="text-sm font-normal text-gray-500">/mês</span>
                             </div>
                             <ul className="space-y-2 text-gray-400 text-sm mb-6">
-                                <li className="flex gap-2"><Check size={16} className="text-green-500" /> QRs ilimitados</li>
-                                <li className="flex gap-2"><Check size={16} className="text-green-500" /> Edição livre</li>
+                                <li className="flex gap-2">
+                                    <Check size={16} className="text-green-500" /> QRs ilimitados
+                                </li>
+                                <li className="flex gap-2">
+                                    <Check size={16} className="text-green-500" /> Edição livre
+                                </li>
                             </ul>
                             <button
                                 onClick={() => handleCheckout('monthly')}
@@ -145,16 +203,21 @@ export default function BillingPage() {
                             </button>
                         </div>
 
-                        {/* Yearly */}
                         <div className="glass-panel p-6 rounded-xl border-blue-500/30">
-                            <div className="text-xs bg-blue-600 text-white px-2 py-1 rounded inline-block mb-2">Economize 17%</div>
+                            <div className="text-xs bg-blue-600 text-white px-2 py-1 rounded inline-block mb-2">
+                                Economize 17%
+                            </div>
                             <h3 className="font-bold text-lg mb-2">Anual</h3>
                             <div className="text-3xl font-bold mb-4">
                                 R$ 290<span className="text-sm font-normal text-gray-500">/ano</span>
                             </div>
                             <ul className="space-y-2 text-gray-400 text-sm mb-6">
-                                <li className="flex gap-2"><Check size={16} className="text-blue-500" /> Tudo do mensal</li>
-                                <li className="flex gap-2"><Check size={16} className="text-blue-500" /> 2 meses grátis</li>
+                                <li className="flex gap-2">
+                                    <Check size={16} className="text-blue-500" /> Tudo do mensal
+                                </li>
+                                <li className="flex gap-2">
+                                    <Check size={16} className="text-blue-500" /> 2 meses grátis
+                                </li>
                             </ul>
                             <button
                                 onClick={() => handleCheckout('yearly')}
@@ -171,3 +234,4 @@ export default function BillingPage() {
         </div>
     );
 }
+

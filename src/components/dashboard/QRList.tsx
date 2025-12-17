@@ -241,18 +241,18 @@ function QRCard({
 
             <p className="text-sm text-gray-500 truncate" title={qr.payload}>{qr.payload}</p>
 
-            <div className="mt-auto flex gap-2">
+            <div className="mt-auto grid grid-cols-2 gap-2">
                 <a
                     href={qrUrl}
                     target="_blank"
-                    className="flex-1 flex items-center justify-center gap-2 py-2 bg-blue-600/20 text-blue-400 rounded-lg hover:bg-blue-600/30 transition-colors text-sm"
+                    className="flex items-center justify-center gap-2 py-2 bg-blue-600/20 text-blue-400 rounded-lg hover:bg-blue-600/30 transition-colors text-sm"
                 >
                     <ExternalLink size={16} /> Testar
                 </a>
                 <button
                     type="button"
                     onClick={onEdit}
-                    className="flex items-center justify-center gap-2 px-3 py-2 bg-white/10 text-gray-200 rounded-lg hover:bg-white/15 transition-colors text-sm"
+                    className="flex items-center justify-center gap-2 py-2 bg-white/10 text-gray-200 rounded-lg hover:bg-white/15 transition-colors text-sm"
                     title="Editar destino"
                 >
                     <Pencil size={16} />
@@ -261,7 +261,7 @@ function QRCard({
                 <button
                     type="button"
                     onClick={handleDownloadPng}
-                    className="flex items-center justify-center gap-2 px-3 py-2 bg-white/10 text-gray-200 rounded-lg hover:bg-white/15 transition-colors text-sm"
+                    className="flex items-center justify-center gap-2 py-2 bg-white/10 text-gray-200 rounded-lg hover:bg-white/15 transition-colors text-sm"
                     title="Baixar PNG"
                 >
                     <ImageDown size={16} />
@@ -270,7 +270,7 @@ function QRCard({
                 <button
                     type="button"
                     onClick={handleDownloadSvg}
-                    className="flex items-center justify-center gap-2 px-3 py-2 bg-white/10 text-gray-200 rounded-lg hover:bg-white/15 transition-colors text-sm"
+                    className="flex items-center justify-center gap-2 py-2 bg-white/10 text-gray-200 rounded-lg hover:bg-white/15 transition-colors text-sm"
                     title="Baixar SVG"
                 >
                     <ImageDown size={16} />

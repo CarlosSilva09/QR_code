@@ -13,6 +13,7 @@ function getStripe() {
 }
 
 function getCurrentPeriodEndDate(subscription: Stripe.Subscription): Date | null {
+    if (subscription.cancel_at) return new Date(subscription.cancel_at * 1000);
     const items = subscription.items?.data ?? [];
     if (items.length === 0) return null;
     const maxEndSeconds = items.reduce((max, item) => Math.max(max, item.current_period_end), 0);

@@ -5,6 +5,13 @@ import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
+function hasAccess(subscription: { status: string; currentPeriodEnd: Date | null } | null | undefined) {
+    if (!subscription) return false;
+    const now = Date.now();
+    if (subscription.currentPeriodEnd && subscription.currentPeriodEnd.getTime() > now) return true;
+    return subscription.status === "active" || subscription.status === "trialing";
+}
+
 export async function POST(req: Request) {
     const session = await getServerSession(authOptions);
 
@@ -22,8 +29,7 @@ export async function POST(req: Request) {
     if (!user) return NextResponse.json({ message: "User not found" }, { status: 404 });
 
     // Verify subscription again on backend
-    const isActive = user.subscription?.status === 'active' || user.subscription?.status === 'trialing';
-    if (!isActive) {
+    if (!hasAccess(user.subscription)) {
         return NextResponse.json({ message: "Subscription required" }, { status: 403 });
     }
 
@@ -59,8 +65,7 @@ export async function PATCH(req: Request) {
 
     if (!user) return NextResponse.json({ message: "User not found" }, { status: 404 });
 
-    const isActive = user.subscription?.status === 'active' || user.subscription?.status === 'trialing';
-    if (!isActive) {
+    if (!hasAccess(user.subscription)) {
         return NextResponse.json({ message: "Subscription required" }, { status: 403 });
     }
 

@@ -13,6 +13,8 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_test_placeholder"
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
 function getCurrentPeriodEndDate(subscription: Stripe.Subscription): Date | null {
+    // If Stripe scheduled a cancellation, use that date as the access end (e.g. yearly cancel in 30 days)
+    if (subscription.cancel_at) return new Date(subscription.cancel_at * 1000);
     const items = subscription.items?.data ?? [];
     if (items.length === 0) return null;
     const maxEndSeconds = items.reduce((max, item) => Math.max(max, item.current_period_end), 0);
