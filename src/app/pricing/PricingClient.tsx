@@ -40,7 +40,7 @@ export default function PricingClient() {
                 setLoading(null);
             }
         } catch (err) {
-            setError('Erro de conexÇœo');
+            setError('Erro de conexão');
             setLoading(null);
         }
     };
@@ -62,7 +62,7 @@ export default function PricingClient() {
             <main className="pt-24 pb-16 px-6">
                 <div className="max-w-5xl mx-auto text-center">
                     <Link href="/" className="inline-flex items-center text-gray-400 hover:text-white mb-8 text-sm">
-                        <ArrowLeft size={16} className="mr-2" /> Voltar ao inÇðcio
+                        <ArrowLeft size={16} className="mr-2" /> Voltar ao início
                     </Link>
 
                     <h1 className="text-4xl md:text-6xl font-bold mb-4">
@@ -74,7 +74,7 @@ export default function PricingClient() {
 
                     {canceled && (
                         <div className="bg-yellow-500/10 border border-yellow-500/50 text-yellow-500 p-4 rounded-lg mb-8 max-w-md mx-auto">
-                            Pagamento cancelado. VocÇ¦ pode tentar novamente quando quiser.
+                            Pagamento cancelado. Você pode tentar novamente quando quiser.
                         </div>
                     )}
 
@@ -90,13 +90,13 @@ export default function PricingClient() {
                             <h3 className="text-xl font-bold mb-2">Mensal</h3>
                             <div className="text-5xl font-bold mb-2">
                                 R$ 29
-                                <span className="text-lg font-normal text-gray-500">/mÇ¦s</span>
+                                <span className="text-lg font-normal text-gray-500">/mês</span>
                             </div>
-                            <p className="text-gray-500 mb-6">CobranÇõa mensal</p>
+                            <p className="text-gray-500 mb-6">Cobrança mensal</p>
 
                             <ul className="space-y-4 mb-8 text-left flex-1">
                                 <li className="flex gap-3"><Check className="text-green-500 shrink-0" size={20} /> QR Codes ilimitados</li>
-                                <li className="flex gap-3"><Check className="text-green-500 shrink-0" size={20} /> EdiÇõÇœo do destino a qualquer momento</li>
+                                <li className="flex gap-3"><Check className="text-green-500 shrink-0" size={20} /> Edição do destino a qualquer momento</li>
                                 <li className="flex gap-3"><Check className="text-green-500 shrink-0" size={20} /> Download PNG e SVG</li>
                                 <li className="flex gap-3"><Check className="text-green-500 shrink-0" size={20} /> Suporte por email</li>
                             </ul>
@@ -122,13 +122,13 @@ export default function PricingClient() {
                                 R$ 290
                                 <span className="text-lg font-normal text-gray-500">/ano</span>
                             </div>
-                            <p className="text-green-400 mb-6">Economize R$ 58 (2 meses grÇ­tis)</p>
+                            <p className="text-green-400 mb-6">Economize R$ 58 (2 meses grátis)</p>
 
                             <ul className="space-y-4 mb-8 text-left flex-1">
                                 <li className="flex gap-3"><Check className="text-blue-500 shrink-0" size={20} /> Tudo do plano mensal</li>
-                                <li className="flex gap-3"><Check className="text-blue-500 shrink-0" size={20} /> Suporte prioritÇ­rio</li>
-                                <li className="flex gap-3"><Check className="text-blue-500 shrink-0" size={20} /> Analytics bÇ­sico</li>
-                                <li className="flex gap-3"><Check className="text-blue-500 shrink-0" size={20} /> OrganizaÇõÇœo por pastas</li>
+                                <li className="flex gap-3"><Check className="text-blue-500 shrink-0" size={20} /> Suporte prioritário</li>
+                                <li className="flex gap-3"><Check className="text-blue-500 shrink-0" size={20} /> Analytics básico</li>
+                                <li className="flex gap-3"><Check className="text-blue-500 shrink-0" size={20} /> Organização por pastas</li>
                             </ul>
 
                             <button
@@ -150,4 +150,3 @@ export default function PricingClient() {
         </div>
     );
 }
-

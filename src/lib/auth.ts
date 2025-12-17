@@ -1,6 +1,6 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { prisma } from "./prisma";
+import { getDatabaseUrl, prisma } from "./prisma";
 import { compare } from "bcryptjs";
 import { Prisma } from "@prisma/client";
 
@@ -23,8 +23,8 @@ export const authOptions: NextAuthOptions = {
                     return null;
                 }
 
-                const databaseUrl = process.env.DATABASE_URL;
-                if (!databaseUrl || (!databaseUrl.startsWith("postgresql://") && !databaseUrl.startsWith("postgres://"))) {
+                const databaseUrl = getDatabaseUrl();
+                if (!databaseUrl) {
                     throw new Error("DATABASE_URL is not configured");
                 }
 

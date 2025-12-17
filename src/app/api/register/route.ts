@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { hash } from "bcryptjs";
-import { prisma } from "@/lib/prisma";
+import { getDatabaseUrl, prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 
 export const runtime = "nodejs";
@@ -14,10 +14,21 @@ function isPasswordStrong(password: string): boolean {
 
 export async function POST(req: Request) {
     try {
-        const databaseUrl = process.env.DATABASE_URL;
-        if (!databaseUrl || (!databaseUrl.startsWith("postgresql://") && !databaseUrl.startsWith("postgres://"))) {
+        const databaseUrl = getDatabaseUrl();
+        if (!databaseUrl) {
+            console.error("DB env missing for registration", {
+                DATABASE_URL: Boolean(process.env.DATABASE_URL),
+                POSTGRES_PRISMA_URL: Boolean(process.env.POSTGRES_PRISMA_URL),
+                POSTGRES_URL: Boolean(process.env.POSTGRES_URL),
+                POSTGRES_URL_NON_POOLING: Boolean(process.env.POSTGRES_URL_NON_POOLING),
+                POSTGRESQL_URL: Boolean(process.env.POSTGRESQL_URL),
+                POSTGRESQL_URL_NON_POOLING: Boolean(process.env.POSTGRESQL_URL_NON_POOLING),
+            });
             return NextResponse.json(
-                { message: "Banco de dados nÇœo configurado (DATABASE_URL)." },
+                {
+                    message:
+                        "Banco de dados não configurado. Defina DATABASE_URL (ou variáveis POSTGRES_* do Neon) na Vercel.",
+                },
                 { status: 500 }
             );
         }
@@ -95,7 +106,7 @@ export async function POST(req: Request) {
 
         if (error instanceof Prisma.PrismaClientInitializationError) {
             return NextResponse.json(
-                { message: "Erro de conexÇœo com o banco de dados. Verifique a DATABASE_URL no deploy." },
+                { message: "Erro de conexão com o banco de dados. Verifique a DATABASE_URL no deploy." },
                 { status: 500 }
             );
         }
