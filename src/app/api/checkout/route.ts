@@ -54,7 +54,7 @@ export async function POST(req: Request) {
             mode: "subscription",
             payment_method_types: ["card"],
             line_items: [{ price: priceId, quantity: 1 }],
-            success_url: `${origin}/app?success=true`,
+            success_url: `${origin}/app/billing?success=true&session_id={CHECKOUT_SESSION_ID}`,
             cancel_url: `${origin}/pricing?canceled=true`,
             client_reference_id: (session.user as any).id,
             customer_email: session.user.email,

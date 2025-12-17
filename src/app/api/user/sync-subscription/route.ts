@@ -19,12 +19,24 @@ function getCurrentPeriodEndDate(subscription: Stripe.Subscription): Date | null
     return maxEndSeconds > 0 ? new Date(maxEndSeconds * 1000) : null;
 }
 
-export async function POST() {
+export async function POST(req: Request) {
     try {
         const session = await getServerSession(authOptions);
         if (!session?.user?.email) {
             return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
         }
+
+        const { searchParams } = new URL(req.url);
+        const sessionIdFromQuery = searchParams.get("session_id");
+        let sessionIdFromBody: string | null = null;
+        try {
+            const body = await req.json().catch(() => null);
+            if (body && typeof body.sessionId === "string") sessionIdFromBody = body.sessionId;
+        } catch {
+            // ignore invalid JSON
+        }
+
+        const checkoutSessionId = sessionIdFromBody || sessionIdFromQuery;
 
         const user = await prisma.user.findUnique({
             where: { email: session.user.email },
@@ -38,6 +50,40 @@ export async function POST() {
         const stripe = getStripe();
         if (!stripe) {
             return NextResponse.json({ message: "Stripe not configured" }, { status: 503 });
+        }
+
+        if (checkoutSessionId) {
+            const checkoutSession = await stripe.checkout.sessions.retrieve(checkoutSessionId);
+            const subscriptionId =
+                typeof checkoutSession.subscription === "string"
+                    ? checkoutSession.subscription
+                    : checkoutSession.subscription?.id;
+
+            if (!subscriptionId) {
+                return NextResponse.json({ status: "no_subscription_on_session" }, { status: 200 });
+            }
+
+            const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+            const currentPeriodEnd = getCurrentPeriodEndDate(subscription);
+
+            await prisma.subscription.upsert({
+                where: { userId: user.id },
+                create: {
+                    userId: user.id,
+                    stripeCustomerId: typeof checkoutSession.customer === "string" ? checkoutSession.customer : null,
+                    stripeSubscriptionId: subscription.id,
+                    status: subscription.status,
+                    currentPeriodEnd,
+                },
+                update: {
+                    stripeCustomerId: typeof checkoutSession.customer === "string" ? checkoutSession.customer : null,
+                    stripeSubscriptionId: subscription.id,
+                    status: subscription.status,
+                    currentPeriodEnd,
+                },
+            });
+
+            return NextResponse.json({ status: "activated", subscription: subscription.status });
         }
 
         if (user.subscription?.stripeCustomerId) {

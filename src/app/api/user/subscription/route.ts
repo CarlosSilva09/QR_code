@@ -9,7 +9,7 @@ export async function GET() {
     const session = await getServerSession(authOptions);
 
     if (!session || !session.user?.email) {
-        return NextResponse.json({ active: false }, { status: 401 });
+        return NextResponse.json({ status: null, currentPeriodEnd: null, active: false }, { status: 401 });
     }
 
     const user = await prisma.user.findUnique({
@@ -18,12 +18,18 @@ export async function GET() {
     });
 
     if (!user || !user.subscription) {
-        return NextResponse.json({ active: false });
+        return NextResponse.json({ status: null, currentPeriodEnd: null, active: false });
     }
 
     const isActive =
         user.subscription.status === 'active' ||
         user.subscription.status === 'trialing';
 
-    return NextResponse.json({ active: isActive });
+    return NextResponse.json({
+        status: user.subscription.status,
+        currentPeriodEnd: user.subscription.currentPeriodEnd
+            ? user.subscription.currentPeriodEnd.toISOString()
+            : null,
+        active: isActive,
+    });
 }
