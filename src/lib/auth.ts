@@ -2,6 +2,7 @@ import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "./prisma";
 import { compare } from "bcryptjs";
+import { Prisma } from "@prisma/client";
 
 export const authOptions: NextAuthOptions = {
     session: {
@@ -22,11 +23,29 @@ export const authOptions: NextAuthOptions = {
                     return null;
                 }
 
-                const user = await prisma.user.findUnique({
-                    where: {
-                        email: credentials.email,
-                    },
-                });
+                const databaseUrl = process.env.DATABASE_URL;
+                if (!databaseUrl || (!databaseUrl.startsWith("postgresql://") && !databaseUrl.startsWith("postgres://"))) {
+                    throw new Error("DATABASE_URL is not configured");
+                }
+
+                let user: { id: string; email: string; password: string } | null = null;
+                try {
+                    user = await prisma.user.findUnique({
+                        where: {
+                            email: credentials.email,
+                        },
+                        select: {
+                            id: true,
+                            email: true,
+                            password: true,
+                        },
+                    });
+                } catch (error) {
+                    if (error instanceof Prisma.PrismaClientInitializationError) {
+                        throw new Error("Database connection failed");
+                    }
+                    throw error;
+                }
 
                 if (!user) {
                     return null;

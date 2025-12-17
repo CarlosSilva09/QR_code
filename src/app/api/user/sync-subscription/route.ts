@@ -4,16 +4,24 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import Stripe from "stripe";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-    apiVersion: "2025-04-30.basil" as any,
-});
+export const runtime = "nodejs";
 
-// This endpoint syncs subscription status from Stripe
-// Used as fallback when webhook is not available (local dev)
+function getStripe() {
+    const apiKey = process.env.STRIPE_SECRET_KEY;
+    if (!apiKey) return null;
+    return new Stripe(apiKey, { apiVersion: "2025-11-17.clover" });
+}
+
+function getCurrentPeriodEndDate(subscription: Stripe.Subscription): Date | null {
+    const items = subscription.items?.data ?? [];
+    if (items.length === 0) return null;
+    const maxEndSeconds = items.reduce((max, item) => Math.max(max, item.current_period_end), 0);
+    return maxEndSeconds > 0 ? new Date(maxEndSeconds * 1000) : null;
+}
+
 export async function POST() {
     try {
         const session = await getServerSession(authOptions);
-
         if (!session?.user?.email) {
             return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
         }
@@ -27,7 +35,11 @@ export async function POST() {
             return NextResponse.json({ message: "User not found" }, { status: 404 });
         }
 
-        // If user already has a subscription with stripeCustomerId, check Stripe
+        const stripe = getStripe();
+        if (!stripe) {
+            return NextResponse.json({ message: "Stripe not configured" }, { status: 503 });
+        }
+
         if (user.subscription?.stripeCustomerId) {
             const subscriptions = await stripe.subscriptions.list({
                 customer: user.subscription.stripeCustomerId,
@@ -36,13 +48,14 @@ export async function POST() {
             });
 
             if (subscriptions.data.length > 0) {
-                const sub = subscriptions.data[0] as any;
+                const sub = subscriptions.data[0];
+                const currentPeriodEnd = getCurrentPeriodEndDate(sub);
                 await prisma.subscription.update({
                     where: { userId: user.id },
                     data: {
                         status: sub.status,
                         stripeSubscriptionId: sub.id,
-                        currentPeriodEnd: new Date(sub.current_period_end * 1000),
+                        currentPeriodEnd,
                     },
                 });
 
@@ -50,11 +63,7 @@ export async function POST() {
             }
         }
 
-        // Search for recent checkout sessions by customer email
-        const checkoutSessions = await stripe.checkout.sessions.list({
-            limit: 10,
-        });
-
+        const checkoutSessions = await stripe.checkout.sessions.list({ limit: 10 });
         const userSession = checkoutSessions.data.find(
             (s) => s.customer_email === user.email && s.status === "complete"
         );
@@ -62,7 +71,8 @@ export async function POST() {
         if (userSession && userSession.subscription) {
             const subscription = await stripe.subscriptions.retrieve(
                 userSession.subscription as string
-            ) as any;
+            );
+            const currentPeriodEnd = getCurrentPeriodEndDate(subscription);
 
             await prisma.subscription.upsert({
                 where: { userId: user.id },
@@ -71,13 +81,13 @@ export async function POST() {
                     stripeCustomerId: userSession.customer as string,
                     stripeSubscriptionId: subscription.id,
                     status: subscription.status,
-                    currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+                    currentPeriodEnd,
                 },
                 update: {
                     stripeCustomerId: userSession.customer as string,
                     stripeSubscriptionId: subscription.id,
                     status: subscription.status,
-                    currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+                    currentPeriodEnd,
                 },
             });
 
@@ -88,7 +98,7 @@ export async function POST() {
     } catch (error: any) {
         console.error("Sync subscription error:", error);
         return NextResponse.json(
-            { message: error.message || "Error syncing subscription" },
+            { message: error?.message || "Error syncing subscription" },
             { status: 500 }
         );
     }

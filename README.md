@@ -2,46 +2,58 @@
 
 Modern SaaS platform for generating permanent QR Codes with subscription handling.
 
-## 🚀 Getting Started
+## Getting Started
 
 ### 1. Environment Setup
-Rename `.env.example` to `.env` (or create it) with:
+
+Local development: copy `.env.example` to `.env.local` and fill in:
+
 ```env
-DATABASE_URL="file:./dev.db"
-NEXTAUTH_SECRET="super-secret-key"
+DATABASE_URL="postgresql://USER:PASSWORD@HOST/DATABASE?sslmode=require"
+NEXTAUTH_SECRET="generate-a-random-secret"
 NEXTAUTH_URL="http://localhost:3000"
 
-# Stripe (Get these from Stripe Dashboard)
 STRIPE_SECRET_KEY="sk_test_..."
 STRIPE_WEBHOOK_SECRET="whsec_..."
+STRIPE_PRICE_MONTHLY="price_..."
+STRIPE_PRICE_YEARLY="price_..."
 ```
 
+Vercel/production: set the same variables in **Project Settings → Environment Variables**.
+
 ### 2. Install Dependencies
+
 ```bash
 npm install
 ```
 
-### 3. Database Setup
+### 3. Database Setup (Production)
+
 ```bash
-npx prisma migrate dev --name init
+npx prisma migrate deploy
 ```
 
 ### 4. Run Development Server
+
 ```bash
 npm run dev
 ```
-Access at [http://localhost:3000](http://localhost:3000).
 
-## 🛠 Features
+Access at `http://localhost:3000`.
 
-- **Landing Page**: 3D Hero, Animations (GSAP).
-- **Authentication**: Email/Password (NextAuth).
-- **Dashboard**: Subscription-locked QR generation.
-- **Redirect System**: `/q/[uuid]` handles permanent links.
-- **Payments**: Stripe Webhook integration for syncing subscriptions.
+## Features
 
-## 💳 Stripe Integration
+- Landing page with animations
+- Authentication (NextAuth credentials)
+- Dashboard with subscription-locked QR generation
+- Redirect system: `/q/[uuid]`
+- Stripe checkout + webhooks for subscription sync
 
-1. Create a Product/Price in Stripe.
-2. Update `src/components/landing/Pricing.tsx` with your payment links.
-3. Configure Webhook to point to `your-domain.com/api/webhooks/stripe` listening for `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`.
+## Stripe Integration
+
+1. Create Products/Prices in Stripe and set `STRIPE_PRICE_MONTHLY`/`STRIPE_PRICE_YEARLY`.
+2. Configure the webhook endpoint: `/api/webhooks/stripe` listening for:
+   - `checkout.session.completed`
+   - `customer.subscription.updated`
+   - `customer.subscription.deleted`
+

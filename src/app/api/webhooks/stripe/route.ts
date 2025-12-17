@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
 
+export const runtime = "nodejs";
+
 // Use the latest API version supported by the installed Stripe SDK to satisfy TS literal type
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_test_placeholder", {
     apiVersion: "2025-11-17.clover",

@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { hash } from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
+
+export const runtime = "nodejs";
 
 // Password validation: min 8 chars, 1 uppercase, 1 number
 function isPasswordStrong(password: string): boolean {
@@ -11,6 +14,14 @@ function isPasswordStrong(password: string): boolean {
 
 export async function POST(req: Request) {
     try {
+        const databaseUrl = process.env.DATABASE_URL;
+        if (!databaseUrl || (!databaseUrl.startsWith("postgresql://") && !databaseUrl.startsWith("postgres://"))) {
+            return NextResponse.json(
+                { message: "Banco de dados nÇœo configurado (DATABASE_URL)." },
+                { status: 500 }
+            );
+        }
+
         const { email, password, name, phone, cpf, termsAccepted } = await req.json();
 
         // Validation
@@ -72,6 +83,23 @@ export async function POST(req: Request) {
         );
     } catch (error) {
         console.error("Registration error:", error);
+
+        if (error instanceof Prisma.PrismaClientKnownRequestError) {
+            if (error.code === "P2002") {
+                return NextResponse.json(
+                    { message: "Este email jÇ­ estÇ­ cadastrado" },
+                    { status: 400 }
+                );
+            }
+        }
+
+        if (error instanceof Prisma.PrismaClientInitializationError) {
+            return NextResponse.json(
+                { message: "Erro de conexÇœo com o banco de dados. Verifique a DATABASE_URL no deploy." },
+                { status: 500 }
+            );
+        }
+
         return NextResponse.json(
             { message: "Erro ao criar conta. Tente novamente." },
             { status: 500 }

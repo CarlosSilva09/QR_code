@@ -3,11 +3,14 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import Stripe from "stripe";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-    apiVersion: "2025-04-30.basil" as any, // Use latest available
-});
+export const runtime = "nodejs";
 
-// Price IDs - Replace with your actual Stripe Price IDs
+function getStripe() {
+    const apiKey = process.env.STRIPE_SECRET_KEY;
+    if (!apiKey) return null;
+    return new Stripe(apiKey, { apiVersion: "2025-11-17.clover" });
+}
+
 const PRICES = {
     monthly: process.env.STRIPE_PRICE_MONTHLY || "price_monthly_placeholder",
     yearly: process.env.STRIPE_PRICE_YEARLY || "price_yearly_placeholder",
@@ -15,55 +18,44 @@ const PRICES = {
 
 export async function POST(req: Request) {
     try {
-        // Check if Stripe is configured
-        if (!process.env.STRIPE_SECRET_KEY) {
+        const stripe = getStripe();
+        if (!stripe) {
             console.error("STRIPE_SECRET_KEY not configured");
             return NextResponse.json(
-                { message: "Pagamentos ainda não configurados. Configure STRIPE_SECRET_KEY no arquivo .env" },
+                { message: "Pagamentos nao configurados. Configure STRIPE_SECRET_KEY no ambiente (Vercel)." },
                 { status: 503 }
             );
         }
 
         const session = await getServerSession(authOptions);
-
         if (!session?.user?.email) {
-            return NextResponse.json(
-                { message: "Você precisa estar logado" },
-                { status: 401 }
-            );
+            return NextResponse.json({ message: "Voce precisa estar logado" }, { status: 401 });
         }
 
         const { plan } = await req.json();
-
         if (!plan || !["monthly", "yearly"].includes(plan)) {
-            return NextResponse.json(
-                { message: "Plano inválido" },
-                { status: 400 }
-            );
+            return NextResponse.json({ message: "Plano invalido" }, { status: 400 });
         }
 
         const priceId = plan === "monthly" ? PRICES.monthly : PRICES.yearly;
-
-        // Check if price IDs are configured
         if (priceId.includes("placeholder")) {
             return NextResponse.json(
-                { message: "Preços não configurados. Configure STRIPE_PRICE_MONTHLY e STRIPE_PRICE_YEARLY no .env" },
+                { message: "Precos nao configurados. Configure STRIPE_PRICE_MONTHLY e STRIPE_PRICE_YEARLY no ambiente (Vercel)." },
                 { status: 503 }
             );
         }
 
-        // Create Stripe Checkout Session
+        const origin =
+            req.headers.get("origin") ||
+            process.env.NEXTAUTH_URL ||
+            "http://localhost:3000";
+
         const checkoutSession = await stripe.checkout.sessions.create({
             mode: "subscription",
             payment_method_types: ["card"],
-            line_items: [
-                {
-                    price: priceId,
-                    quantity: 1,
-                },
-            ],
-            success_url: `${process.env.NEXTAUTH_URL}/app?success=true`,
-            cancel_url: `${process.env.NEXTAUTH_URL}/pricing?canceled=true`,
+            line_items: [{ price: priceId, quantity: 1 }],
+            success_url: `${origin}/app?success=true`,
+            cancel_url: `${origin}/pricing?canceled=true`,
             client_reference_id: (session.user as any).id,
             customer_email: session.user.email,
             metadata: {
@@ -75,7 +67,7 @@ export async function POST(req: Request) {
     } catch (error: any) {
         console.error("Checkout error:", error);
         return NextResponse.json(
-            { message: error.message || "Erro ao criar sessão de pagamento" },
+            { message: error?.message || "Erro ao criar sessao de pagamento" },
             { status: 500 }
         );
     }
