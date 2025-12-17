@@ -85,6 +85,45 @@ export async function PATCH(req: Request) {
     return NextResponse.json(updated);
 }
 
+export async function DELETE(req: Request) {
+    const session = await getServerSession(authOptions);
+
+    if (!session || !session.user?.email) {
+        return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const idFromQuery = searchParams.get("id");
+
+    let idFromBody: string | null = null;
+    try {
+        const body = await req.json().catch(() => null);
+        if (body && typeof body.id === "string") idFromBody = body.id;
+    } catch {
+        // ignore invalid JSON
+    }
+
+    const id = idFromQuery || idFromBody;
+    if (!id) {
+        return NextResponse.json({ message: "Missing id" }, { status: 400 });
+    }
+
+    const user = await prisma.user.findUnique({
+        where: { email: session.user.email },
+        select: { id: true },
+    });
+
+    if (!user) return NextResponse.json({ message: "User not found" }, { status: 404 });
+
+    const qr = await prisma.qRCode.findUnique({ where: { id } });
+    if (!qr || qr.userId !== user.id) {
+        return NextResponse.json({ message: "Not found" }, { status: 404 });
+    }
+
+    await prisma.qRCode.delete({ where: { id } });
+    return NextResponse.json({ deleted: true });
+}
+
 export async function GET() {
     const session = await getServerSession(authOptions);
 

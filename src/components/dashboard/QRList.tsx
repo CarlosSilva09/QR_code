@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { QRCodeCanvas, QRCodeSVG } from 'qrcode.react';
-import { ExternalLink, ImageDown, Pencil, X, Save } from 'lucide-react';
+import { ExternalLink, ImageDown, Pencil, X, Save, Trash2 } from 'lucide-react';
 
 export default function QRList() {
     const [qrs, setQrs] = useState<any[]>([]);
@@ -107,6 +107,7 @@ export default function QRList() {
                         onDownloadBlob={downloadBlob}
                         sanitizeFilename={sanitizeFilename}
                         onEdit={() => startEdit(qr)}
+                        onDeleted={() => setQrs((prev) => prev.filter((q) => q.id !== qr.id))}
                     />
                 ))}
             </div>
@@ -194,12 +195,14 @@ function QRCard({
     onDownloadBlob,
     sanitizeFilename,
     onEdit,
+    onDeleted,
 }: {
     qr: any;
     baseUrl: string;
     onDownloadBlob: (blob: Blob, filename: string) => void;
     sanitizeFilename: (name: string) => string;
     onEdit: () => void;
+    onDeleted: () => void;
 }) {
     const qrUrl = baseUrl ? `${baseUrl}/q/${qr.id}` : `/q/${qr.id}`;
     const filenameBase = sanitizeFilename(qr?.name || 'qr-code');
@@ -223,6 +226,21 @@ function QRCard({
         }
         const blob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
         onDownloadBlob(blob, `${filenameBase}.svg`);
+    };
+
+    const handleDelete = async () => {
+        if (!confirm('Excluir este QR Code? Essa ação não pode ser desfeita.')) return;
+        try {
+            const res = await fetch(`/api/qrcodes?id=${encodeURIComponent(qr.id)}`, { method: 'DELETE' });
+            const data = await res.json().catch(() => null);
+            if (!res.ok) {
+                alert((data && data.message) || 'Erro ao excluir.');
+                return;
+            }
+            onDeleted();
+        } catch {
+            alert('Erro de conexão.');
+        }
     };
 
     return (
@@ -275,6 +293,15 @@ function QRCard({
                 >
                     <ImageDown size={16} />
                     SVG
+                </button>
+                <button
+                    type="button"
+                    onClick={handleDelete}
+                    className="col-span-2 flex items-center justify-center gap-2 py-2 bg-red-500/15 text-red-300 rounded-lg hover:bg-red-500/25 transition-colors text-sm"
+                    title="Excluir QR"
+                >
+                    <Trash2 size={16} />
+                    Excluir
                 </button>
             </div>
             <div className="text-xs text-gray-600 text-center">
