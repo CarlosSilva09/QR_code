@@ -39,6 +39,47 @@ export async function POST(req: Request) {
     return NextResponse.json(qr);
 }
 
+export async function PATCH(req: Request) {
+    const session = await getServerSession(authOptions);
+
+    if (!session || !session.user?.email) {
+        return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id, payload, name } = await req.json();
+
+    if (!id || typeof id !== "string") {
+        return NextResponse.json({ message: "Missing id" }, { status: 400 });
+    }
+
+    const user = await prisma.user.findUnique({
+        where: { email: session.user.email },
+        include: { subscription: true },
+    });
+
+    if (!user) return NextResponse.json({ message: "User not found" }, { status: 404 });
+
+    const isActive = user.subscription?.status === 'active' || user.subscription?.status === 'trialing';
+    if (!isActive) {
+        return NextResponse.json({ message: "Subscription required" }, { status: 403 });
+    }
+
+    const qr = await prisma.qRCode.findUnique({ where: { id } });
+    if (!qr || qr.userId !== user.id) {
+        return NextResponse.json({ message: "Not found" }, { status: 404 });
+    }
+
+    const updated = await prisma.qRCode.update({
+        where: { id },
+        data: {
+            ...(typeof name === "string" ? { name: name.trim() || "Untitled QR" } : {}),
+            ...(typeof payload === "string" ? { payload: payload.trim() } : {}),
+        },
+    });
+
+    return NextResponse.json(updated);
+}
+
 export async function GET() {
     const session = await getServerSession(authOptions);
 
