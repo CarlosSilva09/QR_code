@@ -36,7 +36,7 @@ export async function POST() {
             });
 
             if (subscriptions.data.length > 0) {
-                const sub = subscriptions.data[0];
+                const sub = subscriptions.data[0] as any;
                 await prisma.subscription.update({
                     where: { userId: user.id },
                     data: {
@@ -62,7 +62,7 @@ export async function POST() {
         if (userSession && userSession.subscription) {
             const subscription = await stripe.subscriptions.retrieve(
                 userSession.subscription as string
-            );
+            ) as any;
 
             await prisma.subscription.upsert({
                 where: { userId: user.id },
