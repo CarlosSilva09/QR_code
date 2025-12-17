@@ -293,10 +293,7 @@ export default function QRGenerator() {
                             ×
                         </button>
 
-                        <h3 className="text-2xl font-bold mb-2">QR criado com sucesso</h3>
-                        <p className="text-gray-400 mb-6 text-sm">
-                            Esse é o QR definitivo (o código sempre aponta para <span className="text-gray-200">/q/{createdQr.id}</span>).
-                        </p>
+                        <h3 className="text-2xl font-bold mb-6">QR Code pronto</h3>
 
                         <div className="glass-panel p-6 rounded-xl flex items-center justify-center bg-white/5">
                             <div className="p-4 bg-white rounded-xl" id="qr-result-svg">
@@ -336,4 +333,3 @@ export default function QRGenerator() {
         </div>
     );
 }
-
