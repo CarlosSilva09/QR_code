@@ -10,6 +10,13 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_test_placeholder"
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
+function getCurrentPeriodEndDate(subscription: Stripe.Subscription): Date | null {
+    const items = subscription.items?.data ?? [];
+    if (items.length === 0) return null;
+    const maxEndSeconds = items.reduce((max, item) => Math.max(max, item.current_period_end), 0);
+    return maxEndSeconds > 0 ? new Date(maxEndSeconds * 1000) : null;
+}
+
 export async function POST(req: Request) {
     if (!webhookSecret) {
         // In dev without webhook secret, maybe allow for testing?
@@ -48,6 +55,7 @@ export async function POST(req: Request) {
 
             if (userId && subscriptionId) {
                 const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+                const currentPeriodEnd = getCurrentPeriodEndDate(subscription);
 
                 await prisma.subscription.upsert({
                     where: { userId },
@@ -56,18 +64,19 @@ export async function POST(req: Request) {
                         stripeCustomerId: customerId,
                         stripeSubscriptionId: subscriptionId,
                         status: subscription.status,
-                        currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+                        currentPeriodEnd,
                     },
                     update: {
                         stripeCustomerId: customerId,
                         stripeSubscriptionId: subscriptionId,
                         status: subscription.status,
-                        currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+                        currentPeriodEnd,
                     }
                 });
             }
         } else if (event.type === "customer.subscription.updated" || event.type === "customer.subscription.deleted") {
             const subscription = event.data.object as Stripe.Subscription;
+            const currentPeriodEnd = getCurrentPeriodEndDate(subscription);
             // Find subscription by stripe ID
             const dbSub = await prisma.subscription.findFirst({
                 where: { stripeSubscriptionId: subscription.id }
@@ -78,7 +87,7 @@ export async function POST(req: Request) {
                     where: { id: dbSub.id },
                     data: {
                         status: subscription.status,
-                        currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+                        currentPeriodEnd,
                     }
                 });
             }
